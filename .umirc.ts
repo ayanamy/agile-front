@@ -4,8 +4,27 @@ export default defineConfig({
   nodeModulesTransform: {
     type: 'none',
   },
+  proxy: {
+    '/api': {
+      target: `http://localhost:8094`, // 测试环境
+      changeOrigin: true,
+    },
+  },
   routes: [
-    { path: '/', component: '@/pages/index' },
+    {
+      path: '/',
+      component: '@/layout',
+      routes: [
+        {
+          path: '/',
+          component: '@/pages/casePage',
+        },
+      ],
+    },
+    {
+      path: '/test',
+      component: '@/pages/testTask',
+    },
   ],
   fastRefresh: {},
 });

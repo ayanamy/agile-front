@@ -20,6 +20,7 @@
     ]
   },
   "dependencies": {
+    "@ant-design/icons": "^4.6.2",
     "@ant-design/pro-layout": "^6.5.0",
     "@umijs/preset-react": "1.x",
     "umi": "^3.4.23"
