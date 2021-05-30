@@ -22,8 +22,13 @@
   "dependencies": {
     "@ant-design/icons": "^4.6.2",
     "@ant-design/pro-layout": "^6.5.0",
+    "@types/lodash": "^4.14.170",
     "@umijs/preset-react": "1.x",
-    "umi": "^3.4.23"
+    "immer": "^9.0.2",
+    "lodash": "^4.17.21",
+    "umi": "^3.4.23",
+    "use-immer": "^0.5.2",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/react": "^17.0.0",

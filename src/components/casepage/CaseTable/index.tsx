@@ -1,21 +1,33 @@
 import React, { FC, useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, Button, Tooltip, Dropdown, Menu, Checkbox, Modal } from 'antd';
+import {
+  Table,
+  Button,
+  Tooltip,
+  Dropdown,
+  Menu,
+  Checkbox,
+  Modal,
+  Space,
+} from 'antd';
+
 import {
   EditOutlined,
   FileDoneOutlined,
   CopyOutlined,
   ExclamationCircleOutlined,
   EllipsisOutlined,
+  PlusOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { ColumnType } from 'antd/es/table';
 import FastSearch from '@/components/FastSearch';
-import { TSeacher } from '@/components/FastSearch/interface';
+import { TSearcher } from '@/components/FastSearch/interface';
 import { FormItemType } from '@/components/FormComponents/interface';
 import { request, Link } from 'umi';
 import moment from 'moment';
-import './style.less';
+import style from './style.less';
 
-const seacherList: TSeacher[] = [
+const searcherList: TSearcher[] = [
   {
     type: FormItemType.Input,
     tagProps: {
@@ -65,7 +77,7 @@ const seacherList: TSeacher[] = [
 const CaseTable: FC = (props: any) => {
   const [fastSearchVisible, setFastSearchVisible] = useState(false);
   const [dataSource, setDataSource] = useState([]);
-  const onSeach = useCallback((values: any) => {
+  const onSearch = useCallback((values: any) => {
     console.log(values);
   }, []);
 
@@ -128,18 +140,22 @@ const CaseTable: FC = (props: any) => {
           return (
             <span>
               <Tooltip title="编辑用例集">
-                <a className="icon-bg border-a-redius-left">
+                <a
+                  className={`${style['icon-bg']}  ${style['border-a-redius-left']}`}
+                >
                   <EditOutlined />
                 </a>
               </Tooltip>
 
               <Tooltip title="创建测试任务">
-                <a className="icon-bg">
+                <a className={`${style['icon-bg']}`}>
                   <FileDoneOutlined />
                 </a>
               </Tooltip>
               <Tooltip title="复制用例集">
-                <a className="icon-bg border-a-redius-right margin-3-right">
+                <a
+                  className={`${style['icon-bg']}  ${style['border-a-redius-right']}`}
+                >
                   <CopyOutlined />
                 </a>
               </Tooltip>
@@ -191,7 +207,7 @@ const CaseTable: FC = (props: any) => {
                   </Menu>
                 }
               >
-                <a className="icon-bg border-around">
+                <a className={`${style['icon-bg']}  ${style['border-around']}`}>
                   <EllipsisOutlined />
                 </a>
               </Dropdown>
@@ -216,22 +232,35 @@ const CaseTable: FC = (props: any) => {
     });
     setDataSource(data.dataSources ?? []);
   }, []);
+
   useEffect(() => {
     fetchList();
   }, []);
+
   return (
     <div>
-      <div>
-        <Button type="primary" onClick={() => setFastSearchVisible(true)}>
-          快速检索
-        </Button>
+      <div className={style['table-toolbar']}>
+        <div>快速筛选</div>
+        <div>
+          <Space>
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => setFastSearchVisible(true)}
+            >
+              筛选
+            </Button>
+            <Button icon={<SearchOutlined />} type="primary">
+              新建用例集
+            </Button>
+          </Space>
+        </div>
       </div>
-      <Table columns={columns} dataSource={dataSource} />
+      <Table rowKey="id" columns={columns} dataSource={dataSource} />
       <FastSearch
         visible={fastSearchVisible}
         setVisible={setFastSearchVisible}
-        seacherList={seacherList}
-        onSeach={onSeach}
+        searcherList={searcherList}
+        onSearch={onSearch}
       />
     </div>
   );

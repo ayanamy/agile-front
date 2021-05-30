@@ -1,25 +1,25 @@
 import React, { FC, useState, useEffect, useMemo } from 'react';
 
-import type { TFastSeacherProps } from './interface';
+import type { TFasTSearcherProps } from './interface';
 import { Form, Button, Drawer } from 'antd';
 import { renderForm } from './utils';
 
-const FastSearch: FC<TFastSeacherProps> = ({
+const FastSearch: FC<TFasTSearcherProps> = ({
   visible,
   setVisible,
-  seacherList,
-  onSeach,
+  searcherList,
+  onSearch,
 }) => {
   const [form] = Form.useForm();
-  const handleSeach = () => {
+  const handleSearch = () => {
     let value = form.getFieldsValue();
-    onSeach?.(value);
+    onSearch?.(value);
   };
   const footer = useMemo(
     () => (
       <>
         <Button onClick={() => form.resetFields()}>重置</Button>
-        <Button type="primary" onClick={handleSeach}>
+        <Button type="primary" onClick={handleSearch}>
           搜索
         </Button>
       </>
@@ -34,7 +34,7 @@ const FastSearch: FC<TFastSeacherProps> = ({
       footer={footer}
     >
       <Form form={form}>
-        {seacherList.map((item, index) => renderForm(item, index))}
+        {searcherList.map((item, index) => renderForm(item, index))}
       </Form>
     </Drawer>
   );

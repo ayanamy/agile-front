@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TSeacher } from './interface';
+import type { TSearcher } from './interface';
 import { Select, Input, DatePicker } from '@/components/FormComponents';
 import { Form } from 'antd';
 import {
@@ -7,38 +7,37 @@ import {
   TFormInput,
   TFormSelect,
 } from '@/components/FormComponents/interface';
-import { render } from 'react-dom';
 
 const FormItem = Form.Item;
 
-function isSelect(seacher: TSeacher): seacher is TFormSelect {
-  return seacher.type === 'select';
+function isSelect(searcher: TSearcher): searcher is TFormSelect {
+  return searcher.type === 'select';
 }
 
-function isInput(seacher: TSeacher): seacher is TFormInput {
-  return seacher.type === 'input';
+function isInput(searcher: TSearcher): searcher is TFormInput {
+  return searcher.type === 'input';
 }
 
-function isDatePicker(seacher: TSeacher): seacher is TFormDatePicker {
-  return seacher.type === 'datepicker';
+function isDatePicker(searcher: TSearcher): searcher is TFormDatePicker {
+  return searcher.type === 'datepicker';
 }
 
-const renderFormItem = (seacher: TSeacher) => {
-  if (isInput(seacher)) {
-    return <Input {...seacher.tagProps} />;
+const renderFormItem = (searcher: TSearcher) => {
+  if (isInput(searcher)) {
+    return <Input {...searcher.tagProps} />;
   }
-  if (isSelect(seacher)) {
-    return <Select {...seacher.tagProps} />;
+  if (isSelect(searcher)) {
+    return <Select {...searcher.tagProps} />;
   }
-  if (isDatePicker(seacher)) {
-    return <DatePicker {...seacher.tagProps} />;
+  if (isDatePicker(searcher)) {
+    return <DatePicker {...searcher.tagProps} />;
   }
 };
 
-export const renderForm = (seacher: TSeacher, key: React.Key) => {
+export const renderForm = (searcher: TSearcher, key: React.Key) => {
   return (
-    <FormItem key={key} {...seacher.formItemProps}>
-      {renderFormItem(seacher)}
+    <FormItem key={key} {...searcher.formItemProps}>
+      {renderFormItem(searcher)}
     </FormItem>
   );
 };
