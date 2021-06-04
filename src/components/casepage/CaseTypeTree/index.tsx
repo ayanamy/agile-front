@@ -6,6 +6,7 @@ import { useImmer } from 'use-immer';
 import { v1 as uuid } from 'uuid';
 import _ from 'lodash';
 import style from './style.less';
+import { modalConfirm } from '@/utils';
 
 const { Search } = Input;
 const { DirectoryTree } = Tree;
@@ -39,6 +40,7 @@ const CaseTypeTree: FC = (props: any) => {
       };
     });
   }, []);
+
   const findNode = useCallback((node: TTreeNodes[], nodeId: string) => {
     let selectPath = '';
     function findPath(n: TTreeNodes[], id: string, path: string) {
@@ -76,21 +78,37 @@ const CaseTypeTree: FC = (props: any) => {
     [treeData],
   );
 
-  const addSibling = (node: TTreeNodes) => {
-    console.log(1);
-  };
-
-  const deleteNode = (node: TTreeNodes) => {
-    console.log(1);
-  };
-
-  const renameNode = useCallback(
+  const addSibling = useCallback(
     (node: TTreeNodes) => {
       setTreeData((draft) => {
-        const path = findNode(draft, node.id);
+        const path = findNode(draft, node.parentId!);
         const treeNode: TTreeNodes = _.result(draft, path);
-        treeNode.isEdit = true;
+        const id = uuid();
+        const newChild = {
+          id,
+          key: id,
+          children: [],
+          isEdit: true,
+          parentId: node.parentId,
+        };
+        treeNode.children.push(newChild);
       });
+    },
+    [treeData],
+  );
+
+  const deleteNode = useCallback(
+    async (node: TTreeNodes) => {
+      try {
+        await modalConfirm('是否需要删除');
+        setTreeData((draft) => {
+          const path = findNode(draft, node.parentId!);
+          const treeNode: TTreeNodes = _.result(draft, path);
+          treeNode.children = treeNode.children.filter((item) => {
+            return item.id !== node.id;
+          });
+        });
+      } catch (error) {}
     },
     [treeData],
   );
