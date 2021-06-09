@@ -18,13 +18,15 @@ import {
   EllipsisOutlined,
   PlusOutlined,
   SearchOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { ColumnType } from 'antd/es/table';
 import FastSearch from '@/components/FastSearch';
 import { TSearcher } from '@/components/FastSearch/interface';
 import { FormItemType } from '@/components/FormComponents/interface';
-import { request, Link } from 'umi';
+import { request, Link, connect, CaseModelState } from 'umi';
 import moment from 'moment';
+import CaseModal from '@/components/casepage/CaseModal';
 import style from './style.less';
 
 const searcherList: TSearcher[] = [
@@ -74,8 +76,19 @@ const searcherList: TSearcher[] = [
   },
 ];
 
-const CaseTable: FC = (props: any) => {
+const connector = (state: { case: CaseModelState }) => {
+  return {
+    state: state.case,
+  };
+};
+
+interface ICaseType {
+  state: CaseModelState;
+}
+
+const CaseTable: FC<ICaseType> = ({ state }) => {
   const [fastSearchVisible, setFastSearchVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [dataSource, setDataSource] = useState([]);
   const onSearch = useCallback((values: any) => {
     console.log(values);
@@ -218,8 +231,138 @@ const CaseTable: FC = (props: any) => {
     ];
   }, []);
 
+  const expandColumns: ColumnType<any>[] = useMemo(
+    () => [
+      {
+        title: '任务ID',
+        dataIndex: 'id',
+        key: 'id',
+      },
+      {
+        title: '任务名称',
+        dataIndex: 'title',
+        key: 'title',
+        width: 200,
+        render: (text, record) => {
+          return (
+            <Tooltip title={text}>
+              <a className="table-ellipsis">{text}</a>
+            </Tooltip>
+          );
+        },
+      },
+      {
+        title: () => (
+          <Tooltip placement="top" title="负责执行任务与标记用例结果">
+            <span style={{ cursor: 'pointer' }}>负责人</span>
+          </Tooltip>
+        ),
+        dataIndex: 'owner',
+        key: 'owner',
+        render: (text) => (
+          <Tooltip title={text}>
+            <span className="table-ellipsis">{text}</span>
+          </Tooltip>
+        ),
+      },
+      {
+        title: () => (
+          <Tooltip placement="top" title="参与标记用例结果的人员列表">
+            <span style={{ cursor: 'pointer' }}>执行人</span>
+          </Tooltip>
+        ),
+        dataIndex: 'executors',
+        key: 'executors',
+        width: 100,
+        render: (text) => (
+          <Tooltip title={text}>
+            <span className="table-ellipsis">{text}</span>
+          </Tooltip>
+        ),
+      },
+      {
+        title: '通过率',
+        dataIndex: 'successNum',
+        key: 'successNum',
+        align: 'center',
+        render: (text, record) => (
+          <span className="table-operation">
+            {parseInt(((text / record.totalNum) * 100).toString())}%
+          </span>
+        ),
+      },
+      {
+        title: '已测用例集',
+        dataIndex: 'executeNum',
+        key: 'executeNum',
+        align: 'center',
+        render: (text, record) => (
+          <span className="table-operation">
+            {text} / {record.totalNum}
+          </span>
+        ),
+      },
+      {
+        title: '期望时间',
+        dataIndex: 'expectStartTime',
+        key: 'expectStartTime',
+        render: (text, record) =>
+          text
+            ? `${moment(text).format('YYYY-MM-DD')} 至 ${moment(
+                record.expectEndTime,
+              ).format('YYYY-MM-DD')}`
+            : '',
+      },
+      {
+        title: '操作',
+        dataIndex: 'handle',
+        key: 'handle',
+        render: (text, record) => {
+          return (
+            <span>
+              <Tooltip title="编辑任务">
+                <a className="icon-bg border-a-redius-left">
+                  <EditOutlined />
+                </a>
+              </Tooltip>
+              <Tooltip title="执行测试">
+                <a className="icon-bg">
+                  <FileDoneOutlined />
+                </a>
+              </Tooltip>
+              <Tooltip title={`删除任务`}>
+                <a
+                  onClick={() => {
+                    Modal.confirm({
+                      title: '确认删除测试任务吗',
+                      content: (
+                        <span>
+                          这将删除该测试任务下所有的测试与测试结果等信息，并且不可撤销。{' '}
+                          <br />
+                          <Checkbox>我明白以上操作</Checkbox>
+                        </span>
+                      ),
+                      onOk: (e) => {},
+                      icon: <ExclamationCircleOutlined />,
+                      cancelText: '取消',
+                      okText: '删除',
+                    });
+                  }}
+                  className="icon-bg border-a-redius-right margin-3-right"
+                >
+                  <DeleteOutlined />
+                </a>
+              </Tooltip>
+            </span>
+          );
+        },
+      },
+    ],
+    [],
+  );
+
   const fetchList = useCallback(async () => {
-    let { data } = await request('/api/case/list', {
+    let res = await request('/api/case/list', {
       method: 'GET',
       params: {
         pageSize: 10,
@@ -227,15 +370,22 @@ const CaseTable: FC = (props: any) => {
         productLineId: 1,
         caseType: 0,
         channel: 1,
-        bizId: 'root',
+        bizId: state.bizId,
       },
     });
-    setDataSource(data.dataSources ?? []);
-  }, []);
+    if (res.code === 200) {
+      setDataSource(res.data.dataSources ?? []);
+    }
+  }, [state.bizId]);
 
   useEffect(() => {
     fetchList();
-  }, []);
+  }, [state.bizId]);
+
+  const expandedRowRender = (recocd: any) => {
+    console.log(recocd);
+    return <Table columns={expandColumns} />;
+  };
 
   return (
     <div>
@@ -249,21 +399,42 @@ const CaseTable: FC = (props: any) => {
             >
               筛选
             </Button>
-            <Button icon={<SearchOutlined />} type="primary">
+            <Button
+              icon={<SearchOutlined />}
+              type="primary"
+              onClick={() => setModalVisible(true)}
+            >
               新建用例集
             </Button>
           </Space>
         </div>
       </div>
-      <Table rowKey="id" columns={columns} dataSource={dataSource} />
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={dataSource}
+        expandable={{
+          expandedRowRender,
+          rowExpandable: (record) => {
+            return record.recordNum > 0;
+          },
+        }}
+      />
       <FastSearch
         visible={fastSearchVisible}
         setVisible={setFastSearchVisible}
         searcherList={searcherList}
         onSearch={onSearch}
       />
+      <CaseModal
+        visible={modalVisible}
+        setVisible={setModalVisible}
+        onUpdate={() => {
+          fetchList();
+        }}
+      />
     </div>
   );
 };
 
-export default CaseTable;
+export default connect(connector)(CaseTable);

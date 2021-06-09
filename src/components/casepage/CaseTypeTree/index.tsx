@@ -7,14 +7,15 @@ import { v1 as uuid } from 'uuid';
 import _ from 'lodash';
 import style from './style.less';
 import { modalConfirm } from '@/utils';
+import { CaseModelState, connect, ConnectProps, Dispatch } from 'umi';
 
 const { Search } = Input;
 const { DirectoryTree } = Tree;
 type TTreeNodes = {
   key: React.Key;
   children: TTreeNodes[];
-  isEdit?: boolean;
   parentId?: string;
+  text: string;
   id: string;
   [peName: string]: any;
 };
@@ -26,10 +27,28 @@ enum Tree_Operator {
   Delete = 'Delete',
 }
 
-const CaseTypeTree: FC = (props: any) => {
+enum Edit_Type {
+  add = 'add',
+  rename = 'rename',
+}
+
+type TEditNode = {
+  id: string;
+  prevText: string;
+};
+
+type Key = string | number;
+
+interface ICaseTypeTree {
+  dispatch: Dispatch;
+}
+
+const CaseTypeTree: FC<ICaseTypeTree> = ({ dispatch }) => {
   const [form] = Form.useForm();
   const [treeData, setTreeData] = useImmer<TTreeNodes[]>([]);
+  const [editType, setEditType] = useState<Edit_Type>(Edit_Type.add);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [editNode, setEditNode] = useState<TEditNode | null>(null);
   const renderTreeNode = useCallback((treeNodes: any): TTreeNodes[] => {
     return treeNodes.map((node: any) => {
       const children = renderTreeNode(node.children);
@@ -61,18 +80,23 @@ const CaseTypeTree: FC = (props: any) => {
 
   const addChild = useCallback(
     (node: TTreeNodes) => {
+      setEditType(Edit_Type.add);
+      const id = uuid();
       setTreeData((draft) => {
         const path = findNode(draft, node.id);
         const treeNode: TTreeNodes = _.result(draft, path);
-        const id = uuid();
         const newChild = {
           id,
           key: id,
           children: [],
-          isEdit: true,
           parentId: node.id,
+          text: '',
         };
         treeNode.children.push(newChild);
+      });
+      setEditNode({
+        id,
+        prevText: '',
       });
     },
     [treeData],
@@ -80,18 +104,23 @@ const CaseTypeTree: FC = (props: any) => {
 
   const addSibling = useCallback(
     (node: TTreeNodes) => {
+      setEditType(Edit_Type.add);
+      const id = uuid();
       setTreeData((draft) => {
         const path = findNode(draft, node.parentId!);
         const treeNode: TTreeNodes = _.result(draft, path);
-        const id = uuid();
         const newChild = {
           id,
           key: id,
           children: [],
-          isEdit: true,
           parentId: node.parentId,
+          text: '',
         };
         treeNode.children.push(newChild);
+      });
+      setEditNode({
+        id,
+        prevText: '',
       });
     },
     [treeData],
@@ -101,14 +130,28 @@ const CaseTypeTree: FC = (props: any) => {
     async (node: TTreeNodes) => {
       try {
         await modalConfirm('是否需要删除');
-        setTreeData((draft) => {
-          const path = findNode(draft, node.parentId!);
-          const treeNode: TTreeNodes = _.result(draft, path);
-          treeNode.children = treeNode.children.filter((item) => {
-            return item.id !== node.id;
-          });
+        await request('/api/dir/delete', {
+          method: 'POST',
+          data: {
+            parentId: node.parentId,
+            productLineId: 1,
+            delId: node.id,
+            channel: 1,
+          },
         });
+        fetchData();
       } catch (error) {}
+    },
+    [treeData],
+  );
+
+  const renameNode = useCallback(
+    (node: TTreeNodes) => {
+      setEditType(Edit_Type.rename);
+      setEditNode({
+        id: node.id,
+        prevText: node.text,
+      });
     },
     [treeData],
   );
@@ -150,18 +193,47 @@ const CaseTypeTree: FC = (props: any) => {
     }
   };
 
+  const rename = async (node: TTreeNodes, value: string) => {
+    try {
+      const res = await request('/api/dir/rename', {
+        method: 'POST',
+        data: {
+          id: node.id,
+          productLineId: 1,
+          text: value,
+          channel: 1,
+        },
+      });
+      if (res.code === 200) {
+        setEditNode(null);
+        fetchData();
+        message.success('修改成功');
+      } else {
+        message.error(res.msg);
+      }
+    } catch (error) {}
+  };
+
   const οnblurInput = (node: any) => {
-    console.log(form.getFieldValue(node.id));
     if (!form.getFieldValue(node.id)) {
       return;
     }
-    addNode(node, form.getFieldValue(node.id));
+    switch (editType) {
+      case Edit_Type.add:
+        addNode(node, form.getFieldValue(node.id));
+        break;
+      case Edit_Type.rename:
+        rename(node, form.getFieldValue(node.id));
+        break;
+      default:
+        break;
+    }
   };
 
   const titleRender = (node: any) => {
     return (
       <div className={style.titleContainer}>
-        {node.isEdit ? (
+        {node.id === editNode?.id ? (
           <Form.Item name={node.id} noStyle initialValue={node.text}>
             <Input
               size="small"
@@ -235,6 +307,14 @@ const CaseTypeTree: FC = (props: any) => {
     setExpandedKeys(['root']);
   }, []);
 
+  const onSelect = (keys: Key[]) => {
+    console.log(keys);
+    dispatch?.({
+      type: 'case/search',
+      payload: keys[0],
+    });
+  };
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -247,6 +327,7 @@ const CaseTypeTree: FC = (props: any) => {
       <DirectoryTree
         titleRender={titleRender}
         multiple
+        onSelect={onSelect}
         // expandedKeys={expandedKeys}
         treeData={treeData}
       ></DirectoryTree>
@@ -254,4 +335,4 @@ const CaseTypeTree: FC = (props: any) => {
   );
 };
 
-export default CaseTypeTree;
+export default connect()(CaseTypeTree);

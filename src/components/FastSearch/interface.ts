@@ -12,6 +12,6 @@ export type TSearcher = TFormDatePicker | TFormInput | TFormSelect;
 export type TFastSearcherProps = {
   visible: boolean;
   setVisible: React.Dispatch<React.SetStateAction<boolean>>;
-  seacrherList: TSearcher[];
+  searcherList: TSearcher[];
   onSearch?: (value: any) => void;
 };

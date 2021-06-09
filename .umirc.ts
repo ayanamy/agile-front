@@ -10,6 +10,9 @@ export default defineConfig({
       changeOrigin: true,
     },
   },
+  dva: {
+    immer: true,
+  },
   routes: [
     {
       path: '/',

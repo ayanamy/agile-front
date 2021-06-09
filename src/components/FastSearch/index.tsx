@@ -1,10 +1,10 @@
 import React, { FC, useState, useEffect, useMemo } from 'react';
 
-import type { TFasTSearcherProps } from './interface';
+import type { TFastSearcherProps } from './interface';
 import { Form, Button, Drawer } from 'antd';
 import { renderForm } from './utils';
 
-const FastSearch: FC<TFasTSearcherProps> = ({
+const FastSearch: FC<TFastSearcherProps> = ({
   visible,
   setVisible,
   searcherList,
@@ -32,6 +32,7 @@ const FastSearch: FC<TFasTSearcherProps> = ({
       onClose={() => setVisible(false)}
       title="快速筛选"
       footer={footer}
+      width={350}
     >
       <Form form={form}>
         {searcherList.map((item, index) => renderForm(item, index))}
