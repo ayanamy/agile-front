@@ -6,6 +6,8 @@ type TCaseModal = {
   visible: boolean;
   setVisible: React.Dispatch<React.SetStateAction<boolean>>;
   onUpdate?: () => void;
+  caseId?: number;
+  isCopy: boolean;
 };
 const FormItem = Form.Item;
 const { TextArea } = Input;
@@ -17,7 +19,13 @@ const layout = {
   wrapperCol: { span: 18 },
 };
 const { TreeNode } = TreeSelect;
-const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
+const CaseModal: FC<TCaseModal> = ({
+  visible,
+  setVisible,
+  onUpdate,
+  caseId,
+  isCopy,
+}) => {
   const [form] = Form.useForm();
   const [treeData, setTreeData] = useState([]);
   const [uploadFile, setUploadFile] = useState<any>(null);
@@ -35,20 +43,40 @@ const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
     initTreeData();
   }, []);
   useEffect(() => {
-    if (visible) {
-      form.resetFields();
-      setUploadFile(null);
-    }
-  }, [visible]);
+    (async () => {
+      if (visible) {
+        if (caseId) {
+          const res = await request(`api/case/detail?caseId=${caseId}`);
+          if (res.code === 200) {
+            const bizIds = res.data.biz.map(
+              ({ bizId }: { bizId: string }) => bizId,
+            );
+            const data = {
+              ...res.data,
+              bizId: bizIds,
+            };
+            if (isCopy) {
+              data.title = `copy of ${data.title}`;
+            }
+            form.setFieldsValue(data);
+          }
+        } else {
+          form.resetFields();
+          setUploadFile(null);
+        }
+      }
+    })();
+  }, [visible, caseId]);
   const onCancel = () => {
+    form.resetFields();
     setVisible(false);
   };
-  const title = '新建用例集';
+  const title = isCopy ? '复制用例集' : '新建用例集';
   const renderTreeNode = useMemo(() => {
     const renderNodes = (nodes: any) => {
       return nodes.map((item: any) => {
         return (
-          <TreeNode value={item.id} title={item.text}>
+          <TreeNode value={item.id} title={item.text} key={item.id}>
             {renderNodes(item.children)}
           </TreeNode>
         );
@@ -59,9 +87,6 @@ const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
   const onOk = async () => {
     try {
       const values = await form.validateFields();
-      console.log(values);
-      console.log(uploadFile);
-
       let url = 'api/case/create';
       const formData = new FormData();
       let params = {
@@ -69,7 +94,7 @@ const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
         creator: 'admin',
         caseType: 0,
         caseContent: initData,
-        title: values.case,
+        title: values.title,
         channel: 1,
         bizId: values.bizId ? values.bizId.join(',') : '-1',
         id: '',
@@ -90,6 +115,7 @@ const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
       if (res.code === 200) {
         message.success('新建测试用例集成功');
         setVisible(false);
+        form.resetFields();
         onUpdate?.();
       }
     } catch (error) {}
@@ -111,7 +137,7 @@ const CaseModal: FC<TCaseModal> = ({ visible, setVisible, onUpdate }) => {
               message: '请填写用例集名称',
             },
           ]}
-          name="case"
+          name="title"
         >
           <Input placeholder="请填写用例集名称" />
         </FormItem>

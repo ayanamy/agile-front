@@ -8,6 +8,7 @@ import {
   Checkbox,
   Modal,
   Space,
+  message,
 } from 'antd';
 
 import {
@@ -27,8 +28,10 @@ import { FormItemType } from '@/components/FormComponents/interface';
 import { request, Link, connect, CaseModelState } from 'umi';
 import moment from 'moment';
 import CaseModal from '@/components/casepage/CaseModal';
+import TaskModal from '@/components/casepage/TaskModal';
 import style from './style.less';
-
+import { useImmer } from 'use-immer';
+import _ from 'lodash';
 const searcherList: TSearcher[] = [
   {
     type: FormItemType.Input,
@@ -86,15 +89,32 @@ interface ICaseType {
   state: CaseModelState;
 }
 
+interface IColumn {
+  id: number;
+  title: string;
+  requirementId: string;
+  modifier: string;
+  creator: string;
+  gmtCreated: string;
+  handle: any;
+  expandData?: any;
+  recordNum: number;
+  [key: string]: any;
+}
+
 const CaseTable: FC<ICaseType> = ({ state }) => {
   const [fastSearchVisible, setFastSearchVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [dataSource, setDataSource] = useState([]);
+  const [dataSource, setDataSource] = useImmer<IColumn[]>([]);
+  const [selectId, setSelectId] = useState(0);
+  const [taskData, setTaskData] = useState(null);
+  const [taskModalVisible, setTaskModalVisible] = useState(false);
+  const [isCopy, setIsCopy] = useState(false);
   const onSearch = useCallback((values: any) => {
     console.log(values);
   }, []);
 
-  const columns: ColumnType<any>[] = useMemo(() => {
+  const columns: ColumnType<IColumn>[] = useMemo(() => {
     return [
       {
         title: '用例集ID',
@@ -155,19 +175,37 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
               <Tooltip title="编辑用例集">
                 <a
                   className={`${style['icon-bg']}  ${style['border-a-redius-left']}`}
+                  onClick={() => {
+                    setSelectId(record.id);
+
+                    setIsCopy(false);
+                    setModalVisible(true);
+                  }}
                 >
                   <EditOutlined />
                 </a>
               </Tooltip>
 
               <Tooltip title="创建测试任务">
-                <a className={`${style['icon-bg']}`}>
+                <a
+                  className={`${style['icon-bg']}`}
+                  onClick={() => {
+                    setSelectId(record.id);
+                    setTaskData(null);
+                    setTaskModalVisible(true);
+                  }}
+                >
                   <FileDoneOutlined />
                 </a>
               </Tooltip>
               <Tooltip title="复制用例集">
                 <a
                   className={`${style['icon-bg']}  ${style['border-a-redius-right']}`}
+                  onClick={() => {
+                    setSelectId(record.id);
+                    setIsCopy(true);
+                    setModalVisible(true);
+                  }}
                 >
                   <CopyOutlined />
                 </a>
@@ -176,7 +214,7 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
               <Dropdown
                 overlay={
                   <Menu>
-                    <Menu.Item>
+                    <Menu.Item key="delete">
                       <a
                         onClick={() => {
                           Modal.confirm({
@@ -198,7 +236,7 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
                               </span>
                             ),
                             onOk: (e) => {
-                              Modal.destroyAll();
+                              deleteCase(record.id);
                             },
                             icon: <ExclamationCircleOutlined />,
                             cancelText: '取消',
@@ -209,7 +247,7 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
                         删除
                       </a>
                     </Menu.Item>
-                    <Menu.Item>
+                    <Menu.Item key="export">
                       <a
                         href={`/api/file/export?id=${record.id}`}
                         target="_blank"
@@ -233,11 +271,6 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
 
   const expandColumns: ColumnType<any>[] = useMemo(
     () => [
-      {
-        title: '任务ID',
-        dataIndex: 'id',
-        key: 'id',
-      },
       {
         title: '任务名称',
         dataIndex: 'title',
@@ -321,12 +354,21 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
           return (
             <span>
               <Tooltip title="编辑任务">
-                <a className="icon-bg border-a-redius-left">
+                <a
+                  className={`${style['icon-bg']}  ${style['border-a-redius-left']}`}
+                  onClick={() => {
+                    setTaskData(record);
+                    setTaskModalVisible(true);
+                    setSelectId(record.caseId);
+                  }}
+                >
                   <EditOutlined />
                 </a>
               </Tooltip>
               <Tooltip title="执行测试">
-                <a className="icon-bg">
+                <a
+                  className={`${style['icon-bg']}  ${style['border-a-redius-left']}`}
+                >
                   <FileDoneOutlined />
                 </a>
               </Tooltip>
@@ -342,13 +384,15 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
                           <Checkbox>我明白以上操作</Checkbox>
                         </span>
                       ),
-                      onOk: (e) => {},
+                      onOk: (e) => {
+                        deleteTask(record.id, record.caseId);
+                      },
                       icon: <ExclamationCircleOutlined />,
                       cancelText: '取消',
                       okText: '删除',
                     });
                   }}
-                  className="icon-bg border-a-redius-right margin-3-right"
+                  className={`${style['icon-bg']}  ${style['border-a-redius-right']} ${style['margin-3-right']}`}
                 >
                   <DeleteOutlined />
                 </a>
@@ -383,8 +427,67 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
   }, [state.bizId]);
 
   const expandedRowRender = (recocd: any) => {
-    console.log(recocd);
-    return <Table columns={expandColumns} />;
+    return (
+      <Table
+        columns={expandColumns}
+        pagination={false}
+        dataSource={recocd.expandData}
+      />
+    );
+  };
+
+  const deleteCase = async (id: number) => {
+    const res = await request('api/case/delete', {
+      method: 'POST',
+      data: {
+        id,
+      },
+    });
+    if (res.code === 200) {
+      message.success('删除成功');
+      Modal.destroyAll();
+      fetchList();
+    }
+  };
+
+  const deleteTask = async (id: number, taskId: number) => {
+    const res = await request('api/record/delete', {
+      method: 'POST',
+      data: {
+        id,
+      },
+    });
+    if (res.code === 200) {
+      message.success('删除成功');
+      Modal.destroyAll();
+      getRecordList(taskId);
+    }
+  };
+
+  const getRecordList = async (caseId: number) => {
+    const res = await request('/api/record/list', {
+      method: 'GET',
+      params: {
+        caseId,
+      },
+    });
+    if (res.code === 200) {
+      setDataSource((prevState) => {
+        for (let item of prevState) {
+          if (item.id === caseId) {
+            if (!_.isEqual(item.expandData, res.data)) {
+              item.expandData = res.data;
+            }
+          }
+        }
+      });
+    }
+  };
+
+  const onExpand = (expanded: boolean, record: any) => {
+    if (expanded) {
+      getRecordList(record.id);
+    }
   };
 
   return (
@@ -402,7 +505,10 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
             <Button
               icon={<SearchOutlined />}
               type="primary"
-              onClick={() => setModalVisible(true)}
+              onClick={() => {
+                setSelectId(0);
+                setModalVisible(true);
+              }}
             >
               新建用例集
             </Button>
@@ -416,9 +522,13 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
         expandable={{
           expandedRowRender,
           rowExpandable: (record) => {
-            return record.recordNum > 0;
+            return (
+              record.recordNum > 0 ||
+              (Array.isArray(record.expandData) && record.expandData.length > 0)
+            );
           },
         }}
+        onExpand={onExpand}
       />
       <FastSearch
         visible={fastSearchVisible}
@@ -429,8 +539,19 @@ const CaseTable: FC<ICaseType> = ({ state }) => {
       <CaseModal
         visible={modalVisible}
         setVisible={setModalVisible}
+        caseId={selectId}
+        isCopy={isCopy}
         onUpdate={() => {
           fetchList();
+        }}
+      />
+      <TaskModal
+        visible={taskModalVisible}
+        setVisible={setTaskModalVisible}
+        caseId={selectId}
+        taskData={taskData}
+        onUpdate={(caseId) => {
+          getRecordList(caseId);
         }}
       />
     </div>
